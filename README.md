@@ -1,7 +1,17 @@
 # 🌤 Weather Finder App
 
+[![Live Demo](https://img.shields.io/badge/demo-live-green)](https://weather-finder-devacl.vercel.app)
+
 A modern weather application built with **React + TypeScript** that allows users to search for real-time weather information by city and country.  
 The app consumes data from the **OpenWeatherMap API**, validates inputs and responses using **Zod**, and provides a clean, responsive user interface.
+
+## 🚀 Live Demo
+
+You can try the application here:
+
+👉 https://weather-finder-devacl.vercel.app
+
+---
 
 ## ✨ Features
 - Search weather by **city and country**
