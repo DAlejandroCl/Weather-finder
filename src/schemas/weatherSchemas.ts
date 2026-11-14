@@ -35,6 +35,9 @@ export const WeatherSchema = z.object({
     sunrise: z.number(),
     sunset: z.number(),
   }),
+
+  // Offset from UTC in seconds, to show sunrise and sunset in the city's own time.
+  timezone: z.number(),
 });
 
 export type WeatherType = z.infer<typeof WeatherSchema>;
