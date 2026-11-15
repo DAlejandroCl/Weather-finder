@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SearchSchema } from "./searchSchema";
 import { GeoSchema, WeatherSchema } from "./weatherSchemas";
-import { geoResponse, weatherResponse } from "../test/fixtures";
+import { geoResponse, springfieldResponse, weatherResponse } from "../test/fixtures";
 
 describe("SearchSchema", () => {
   it("accepts a country and a city", () => {
@@ -27,7 +27,18 @@ describe("GeoSchema", () => {
   });
 
   it("rejects a place whose coordinates are not numbers", () => {
-    expect(GeoSchema.safeParse([{ lat: "4.6", lon: -74 }]).success).toBe(false);
+    expect(GeoSchema.safeParse([{ ...geoResponse[0], lat: "4.6" }]).success).toBe(false);
+  });
+
+  it("accepts a place with a state and one without", () => {
+    expect(GeoSchema.safeParse(springfieldResponse).success).toBe(true);
+    expect(GeoSchema.safeParse(geoResponse).success).toBe(true);
+  });
+
+  it.each(["name", "country", "lat", "lon"] as const)("rejects a place without %s", (field) => {
+    const incomplete: Record<string, unknown> = { ...geoResponse[0] };
+    delete incomplete[field];
+    expect(GeoSchema.safeParse([incomplete]).success).toBe(false);
   });
 });
 
