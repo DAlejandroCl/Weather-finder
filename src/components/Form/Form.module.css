@@ -52,7 +52,8 @@
 .form input[type="submit"] {
     padding: 1rem;
     background-color: var(--primary);
-    color: var(--white);
+    /* Dark text: white on this amber is 2.1:1, the minimum is 4.5:1. */
+    color: #1c1917;
     border: none;
     border-radius: 6px;
     cursor: pointer;
