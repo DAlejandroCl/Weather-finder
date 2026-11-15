@@ -1,24 +1,30 @@
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import { GeoSchema, WeatherSchema } from "../schemas/weatherSchemas";
-import type { SearchType, WeatherData } from "../types";
+import type { Place, SearchType, WeatherData } from "../types";
 
-const GEO_URL = "https://api.openweathermap.org/geo/1.0/direct";
-const WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather";
+// The API key stays on the server: the browser only talks to these two endpoints.
+const GEOCODE_URL = "/api/geocode";
+const WEATHER_URL = "/api/weather";
+
+const NOT_FOUND = "No information was found for that city in the selected country.";
+const TOO_MANY = "Too many requests. Try again in a moment.";
+const FAILED = "An error occurred while checking the weather. Please try again.";
 
 export default function useWeather() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  // Several places can share a name; when they do, the person chooses one.
+  const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // The search in flight, so a newer search (or leaving the page) can cancel it.
+  // The request in flight, so a newer one (or leaving the page) can cancel it.
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => controllerRef.current?.abort(), []);
 
-  const fetchWeather = async (search: SearchType): Promise<void> => {
-    const appID = import.meta.env.VITE_OPENWEATHER_API_KEY;
-
+  /** Starts a new task: cancels the previous one and clears what it left on screen. */
+  const run = async (task: (signal: AbortSignal) => Promise<void>): Promise<void> => {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -28,44 +34,61 @@ export default function useWeather() {
       setLoading(true);
       setError(null);
       setWeather(null);
+      setPlaces([]);
 
-      // axios encodes `params`, so a city such as "Frankfurt & Main" or "São Paulo"
-      // cannot change the query string.
-      const { data: geoRaw } = await axios.get(GEO_URL, {
-        params: { q: `${search.city},${search.country}`, appid: appID },
-        signal,
-      });
-
-      const geo = GeoSchema.parse(geoRaw);
-
-      if (geo.length === 0) {
-        setError("No information was found for that city in the selected country.");
-        return;
-      }
-
-      const { lat, lon } = geo[0];
-
-      const { data: weatherRaw } = await axios.get(WEATHER_URL, {
-        params: { lat, lon, appid: appID, units: "metric" },
-        signal,
-      });
-
-      setWeather(WeatherSchema.parse(weatherRaw));
+      await task(signal);
     } catch (err) {
-      // A cancelled search was replaced by a newer one, which owns the state now.
+      // A cancelled request was replaced by a newer one, which owns the state now.
       if (axios.isCancel(err) || signal.aborted) return;
 
       console.error("Error fetching weather:", err);
-      setError("An error occurred while checking the weather. Please try again.");
+      setError(axios.isAxiosError(err) && err.response?.status === 429 ? TOO_MANY : FAILED);
     } finally {
       if (controllerRef.current === controller) setLoading(false);
     }
   };
 
+  const loadWeatherOf = async (place: Place, signal: AbortSignal): Promise<void> => {
+    const { data } = await axios.get(WEATHER_URL, {
+      params: { lat: place.lat, lon: place.lon },
+      signal,
+    });
+
+    setWeather(WeatherSchema.parse(data));
+  };
+
+  const fetchWeather = (search: SearchType): Promise<void> =>
+    run(async (signal) => {
+      // axios encodes `params`, so a city such as "Frankfurt & Main" cannot change the query.
+      const { data } = await axios.get(GEOCODE_URL, {
+        params: { city: search.city, country: search.country },
+        signal,
+      });
+
+      const found = GeoSchema.parse(data);
+
+      if (found.length === 0) {
+        setError(NOT_FOUND);
+        return;
+      }
+
+      if (found.length === 1) {
+        await loadWeatherOf(found[0], signal);
+        return;
+      }
+
+      setPlaces(found);
+    });
+
+  const selectPlace = (place: Place): Promise<void> =>
+    run((signal) => loadWeatherOf(place, signal));
+
   return {
     weather,
+    places,
     loading,
     error,
     fetchWeather,
+    selectPlace,
   };
 }
