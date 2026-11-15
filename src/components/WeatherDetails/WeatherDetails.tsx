@@ -1,5 +1,6 @@
 import styles from "./WeatherDetails.module.css";
 import type { WeatherData } from "../../types";
+import { formatLocalTime } from "../../utils/time";
 
 type Props = {
   weather: WeatherData;
@@ -48,6 +49,16 @@ export default function WeatherDetails({ weather }: Props) {
         <div className={styles.item}>
           <span>📈 Pressure</span>
           <strong>{weather.main.pressure} hPa</strong>
+        </div>
+
+        <div className={styles.item}>
+          <span>🌅 Sunrise</span>
+          <strong>{formatLocalTime(weather.sys.sunrise, weather.timezone)}</strong>
+        </div>
+
+        <div className={styles.item}>
+          <span>🌇 Sunset</span>
+          <strong>{formatLocalTime(weather.sys.sunset, weather.timezone)}</strong>
         </div>
       </div>
     </section>
