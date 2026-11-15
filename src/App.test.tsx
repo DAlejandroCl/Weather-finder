@@ -5,7 +5,14 @@ import { http } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { server } from "./test/server";
-import { GEO_URL, WEATHER_URL, geoResponse, ok, weatherResponse } from "./test/fixtures";
+import {
+  GEO_URL,
+  WEATHER_URL,
+  geoResponse,
+  ok,
+  springfieldResponse,
+  weatherResponse,
+} from "./test/fixtures";
 
 async function search(city: string) {
   await userEvent.selectOptions(screen.getByLabelText("Country:"), "CO");
@@ -25,6 +32,29 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { level: 2, name: "Bogotá, CO" })).toBeInTheDocument();
     expect((await axe(container)).violations).toEqual([]);
+  });
+
+  it("asks which place is meant when several share the name, then shows that weather", async () => {
+    server.use(
+      http.get(GEO_URL, () => ok(springfieldResponse)),
+      http.get(WEATHER_URL, ({ request }) =>
+        ok({
+          ...weatherResponse,
+          name: new URL(request.url).searchParams.get("lat") === "42.1" ? "Springfield MA" : "Springfield IL",
+        }),
+      ),
+    );
+    const { container } = render(<App />);
+
+    await search("Springfield");
+
+    expect(await screen.findByRole("heading", { name: "2 places match" })).toHaveFocus();
+    expect((await axe(container)).violations).toEqual([]);
+
+    await userEvent.click(screen.getByRole("button", { name: /Massachusetts/ }));
+
+    expect(await screen.findByRole("heading", { level: 2, name: /Springfield MA/ })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "2 places match" })).not.toBeInTheDocument();
   });
 
   it("shows an announced alert when the city is not found", async () => {

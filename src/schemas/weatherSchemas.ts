@@ -1,11 +1,15 @@
 import { z } from "zod";
 
-export const GeoSchema = z.array(
-  z.object({
-    lat: z.number(),
-    lon: z.number(),
-  })
-);
+export const PlaceSchema = z.object({
+  name: z.string(),
+  country: z.string(),
+  // OpenWeatherMap sends the state or region for some countries only.
+  state: z.string().optional(),
+  lat: z.number(),
+  lon: z.number(),
+});
+
+export const GeoSchema = z.array(PlaceSchema);
 
 export type GeoType = z.infer<typeof GeoSchema>;
 
